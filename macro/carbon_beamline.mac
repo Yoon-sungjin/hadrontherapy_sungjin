@@ -1,0 +1,187 @@
+#########################
+# Set of the verboses 
+#
+/control/verbose 1
+/tracking/verbose 0
+/run/verbose 1
+/event/verbose 0
+
+#####################################################################
+# Set of the physic models
+# 모드에 따라 주석을 해제하여 사용하십시오.
+#####################################################################
+/Physics/addPhysics HADRONTHERAPY_1
+
+# lineal energy 계산 모드 시 주석 해제
+/Physics/addPhysics EmPenelope
+
+# /run/numberOfThreads 4
+
+##########################
+# INFN-LNS transport beam line,
+# normally used for interdisciplinary 
+# researches with carbon and
+# and other ion beams is activated
+# with the following command
+#
+/geometrySetup/selectGeometry Carbon 
+
+##########################
+# Initialisation procedure
+#
+/run/initialize
+
+# Set a very high time threshold to allow all decays to happen
+/process/had/rdm/thresholdForVeryLongDecayTime 1.0e+60 year
+
+#####################################################################
+# CALCULATION MODE & PHYSICS CUTS
+# 모드에 따라 주석을 해제하여 사용하십시오.
+#####################################################################
+
+# ---------------------------------------------------
+# OPTION 1: Dose / LET 계산 모드 (Macroscopic)
+# (사용 시 위 OPTION 1을 모두 주석 처리하고 아래를 해제)
+# ---------------------------------------------------
+#/event/calculationMode DoseLET 
+
+# 거시 영역 (빔라인, 팬텀 외부)
+#/run/setCut 10 mm
+# 중간/미시 영역 통합 (Detector 내부 전체를 1mm로 통일. Envelope 10um는 적용 안 함!)
+#/run/setCutForRegion DetectorLog 1 mm
+
+#/Step/waterPhantomStepMax 0.1 mm 
+
+# ---------------------------------------------------
+# OPTION 2: Lineal Energy 계산 모드 (Microdosimetry)
+# ---------------------------------------------------
+/event/calculationMode Lineal 
+
+# 거시 영역 (Detector 외부)
+/run/setCut 10 mm
+# 중간 영역 (Detector 내부)
+/run/setCutForRegion DetectorLog 0.1 mm
+# 미시 영역 (10um Sphere를 감싸는 버퍼)
+/run/setCutForRegion EnvelopeLog 0.6 um
+
+/Step/waterPhantomStepMax 0.1 mm 
+/Step/envelopeStepMax 10 um
+#/Step/sphereStepMax 0.5 um
+
+
+##########################################################################################################
+#						PRIMARY PARTICLES
+
+# the beam spot is centered at the origin and is 
+# of 1d gaussian shape with a 3mm central plateau
+#
+
+#---------------------------gps-----------------
+/gps/pos/shape Circle
+/gps/pos/centre -3400. 0. 0. mm
+/gps/pos/radius 0. mm
+/gps/pos/sigma_r 3.14 mm
+/gps/particle ion
+# for carbon
+# /gps/ion 6 12 6
+# for helium
+/gps/ion 2 4 2
+/gps/pos/type Beam
+
+
+# the incident surface is in the y-z plane
+
+/gps/pos/rot1 0 1 0
+/gps/pos/rot2 0 0 1
+
+# the beam is travelling along the x-axis without any angular dispersion (angular despersion set to 0.0)
+#
+
+/gps/ang/rot1 0 0 1
+/gps/ang/rot2 0 1 0 
+/gps/ang/type beam1d 
+/gps/ang/sigma_r 0. deg
+
+
+# the beam energy is in gaussian profile
+#
+/gps/ene/type Gauss
+#/gps/ene/mono 5 MeV
+/gps/ene/sigma 0.5 MeV
+/gps/ene/type Mono
+/gps/ene/mono 600 MeV
+
+
+# Voxelised detector
+/changePhantom/size 210 150.5 150.5 mm
+/changePhantom/position 20 0 0 cm
+
+/changeDetector/size 210 150.5 150.5 mm
+/changeDetector/voxelSize 0.5 0.5 0.5 mm
+
+# Put the detector in the lower left corner of the phantom
+/changeDetector/displacement 0 0 0 cm
+
+/changeDetector/sphereRadius 5 um
+/changeDetector/envelopeRadius 50 um
+
+/changePhantom/update
+
+
+##########################
+# Visualisation 
+#
+## /vis/open OGLI 600x600-0+0
+#/vis/open  ## open the default viewer
+# /vis/open VtkQt
+# /vis/open VRML2FILE
+
+# Disable auto refresh and quieten vis messages whilst scene and
+# trajectories are established:
+##/vis/viewer/set/autoRefresh false
+#/vis/verbose errors
+
+##/vis/drawVolume
+##/vis/viewer/set/viewpointThetaPhi 30 140 deg
+#/vis/viewer/zoom 1
+#/vis/viewer/pan -10  0 cm
+##/vis/scene/add/trajectories smooth
+
+##/vis/scene/endOfEventAction accumulate
+
+##/vis/viewer/set/autoRefresh true
+##/vis/verbose warnings
+
+##/vis/viewer/flush
+#########################
+# Display the event number
+# during the run
+# 
+/run/printProgress 100
+
+#########################
+# Start of the run
+#
+#########################
+# 궤적 데이터를 메모리에 저장하지 않음 (대규모 Run 필수 옵션)
+/tracking/storeTrajectory 0
+
+
+#####Dose / LET 용
+#/event/calculationMode DoseLET 
+#/analysis/secondary true
+#/analysis/computeLet true
+####binary 원할 시 주석처리
+#/analysis/setOutputFormat csv 
+
+
+#####Lineal 용
+/event/calculationMode Lineal 
+/analysis/secondary true
+/analysis/computeLet false
+####binary 원할 시 주석처리
+/analysis/setOutputFormat csv 
+
+### 이전 random seed 재구현 원할 시
+/random/resetEngineFrom G4Master_currentRun.rndm
+/run/beamOn 1000
