@@ -65,7 +65,7 @@ class HadrontherapyAnalysisFileMessenger : public G4UImessenger
      * G4 user interface command (that takes a string argument) object
      * Constructor requires command name and messenger class(this).
      */
-    G4UIcmdWithABool *LetCmd, *secondaryCmd;
+    G4UIcmdWithABool *LetCmd, *secondaryCmd, *storeRawStatsCmd;
     // G4UIcmdWithAString *DoseMatrixCmd;
     G4UIcmdWithAString *outputFormatCmd;
 };

@@ -181,6 +181,7 @@
 /analysis/computeLet false
 ####binary 원할 시 주석처리
 /analysis/setOutputFormat csv 
+/analysis/storeRawStats true
 
 ### 이전 random seed 재구현 원할 시
 /random/resetEngineFrom G4Master_currentRun.rndm

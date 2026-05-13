@@ -143,6 +143,7 @@ class HadrontherapyMatrix
     static HadrontherapyMatrix* GetInstance(G4int nX, G4int nY, G4int nZ, G4double mass);
 
     static G4bool secondary;
+    static G4bool storeRawStats;
     static G4double sphereRadius;
     static G4double envelopeRadius;
     // Full list of generated nuclides

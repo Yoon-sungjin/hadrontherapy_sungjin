@@ -84,6 +84,7 @@ HadrontherapyAnalysis* HadrontherapyAnalysis::GetInstance()
 
 HadrontherapyMatrix* HadrontherapyMatrix::instance = NULL;
 G4bool HadrontherapyMatrix::secondary = false;
+G4bool HadrontherapyMatrix::storeRawStats = false;
 G4double HadrontherapyMatrix::sphereRadius = 5.0 * um;
 G4double HadrontherapyMatrix::envelopeRadius = 1.0 * mm;
 
@@ -441,176 +442,183 @@ void HadrontherapyMatrix::StoreDoseFluenceLinealBinary(G4String file)
   if (ofs.is_open())
   {
     G4int numIons = ionlinStore.size();
-
-    // [수정] 2. 헤더 작성 분기 처리
-    if (outputFormat == "csv")
+    
+    if (storeRawStats == false)
     {
-      ofs << "i,j,k,total_yD,total_yD_SE,total_dose,total_dose_SE";
-      for (size_t l = 0; l < ionlinStore.size(); l++)
+      // [수정] 2. 헤더 작성 분기 처리
+      if (outputFormat == "csv")
       {
-        G4String a = (ionlinStore[l].isPrimary) ? "_1" : "";
-        G4String ionName = ionlinStore[l].name + a;
-        ofs << "," << ionName << "_yD," << ionName << "_yD_SE," << ionName << "_dose," << ionName
-            << "_dose_SE," << ionName << "_f";
-      }
-      ofs << "\n";
-    }
-    else
-    {
-      ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongX), sizeof(G4int));
-      ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongY), sizeof(G4int));
-      ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongZ), sizeof(G4int));
-      ofs.write(reinterpret_cast<const char*>(&numIons), sizeof(G4int));
-
-      for (size_t l = 0; l < ionlinStore.size(); l++)
-      {
-        G4String a = (ionlinStore[l].isPrimary) ? "_1" : "";
-        G4String ionName = ionlinStore[l].name + a;
-        G4int nameLen = ionName.length();
-        ofs.write(reinterpret_cast<const char*>(&nameLen), sizeof(G4int));
-        ofs.write(ionName.c_str(), nameLen);
-      }
-    }
-
-    G4double N = (G4double)totalEvents;
-    G4double C = 1000.0 / meanChordLength_um;
-
-    for (G4int i = 0; i < numberOfVoxelAlongX; i++)
-      for (G4int j = 0; j < numberOfVoxelAlongY; j++)
-        for (G4int k = 0; k < numberOfVoxelAlongZ; k++)
+        ofs << "i,j,k,total_yD,total_yD_SE,total_dose,total_dose_SE";
+        for (size_t l = 0; l < ionlinStore.size(); l++)
         {
-          G4int n = Index(i, j, k);
+          G4String a = (ionlinStore[l].isPrimary) ? "_1" : "";
+          G4String ionName = ionlinStore[l].name + a;
+          ofs << "," << ionName << "_yD," << ionName << "_yD_SE," << ionName << "_dose," << ionName
+              << "_dose_SE," << ionName << "_f";
+        }
+        ofs << "\n";
+      }
+      else
+      {
+        ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongX), sizeof(G4int));
+        ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongY), sizeof(G4int));
+        ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongZ), sizeof(G4int));
+        ofs.write(reinterpret_cast<const char*>(&numIons), sizeof(G4int));
 
-          if (matrix[n] > 0)
+        for (size_t l = 0; l < ionlinStore.size(); l++)
+        {
+          G4String a = (ionlinStore[l].isPrimary) ? "_1" : "";
+          G4String ionName = ionlinStore[l].name + a;
+          G4int nameLen = ionName.length();
+          ofs.write(reinterpret_cast<const char*>(&nameLen), sizeof(G4int));
+          ofs.write(ionName.c_str(), nameLen);
+        }
+      }
+
+      G4double N = (G4double)totalEvents;
+      G4double C = 1000.0 / meanChordLength_um;
+
+      for (G4int i = 0; i < numberOfVoxelAlongX; i++)
+        for (G4int j = 0; j < numberOfVoxelAlongY; j++)
+          for (G4int k = 0; k < numberOfVoxelAlongZ; k++)
           {
-            // --- [1] Total yD 및 SE 계산 ---
-            G4double total_yD = (matrixSquare[n] / matrix[n]) * C;
-            G4double total_yD_SE = 0.;
+            G4int n = Index(i, j, k);
 
-            if (N > 1.0)
+            if (matrix[n] > 0)
             {
-              G4double sumY = matrixSquare[n];
-              G4double sumX = matrix[n];
-              G4double sumY2 = matrixQuad[n];
-              G4double sumX2 = matrixSquare[n];
-              G4double sumXY = matrixCube[n];
+              // --- [1] Total yD 및 SE 계산 ---
+              G4double total_yD = (matrixSquare[n] / matrix[n]) * C;
+              G4double total_yD_SE = 0.;
 
-              G4double R = sumY / sumX;
-              G4double s2_Y = (sumY2 - (sumY * sumY) / N) / (N - 1.0);
-              G4double s2_X = (sumX2 - (sumX * sumX) / N) / (N - 1.0);
-              G4double s_XY = (sumXY - (sumY * sumX) / N) / (N - 1.0);
-
-              G4double varR = (N / (sumX * sumX)) * (s2_Y + R * R * s2_X - 2.0 * R * s_XY);
-              if (varR > 0.) total_yD_SE = std::sqrt(varR) * C;
-            }
-
-            // --- [2] Total Dose 및 SE 계산 ---
-            G4double total_dose = (matrix[n] / massOfVoxel / N) / doseUnit;
-            G4double total_dose_SE = 0.;
-            if (N > 1.0)
-            {
-              G4double sumX = matrix[n];
-              G4double sumX2 = matrixSquare[n];
-              G4double variance = (sumX2 - (sumX * sumX) / N) / (N - 1.0);
-              if (variance > 0.)
+              if (N > 1.0)
               {
-                G4double errTotalEnergy = std::sqrt(variance / N);
-                total_dose_SE = (errTotalEnergy / massOfVoxel) / doseUnit;
+                G4double sumY = matrixSquare[n];
+                G4double sumX = matrix[n];
+                G4double sumY2 = matrixQuad[n];
+                G4double sumX2 = matrixSquare[n];
+                G4double sumXY = matrixCube[n];
+
+                G4double R = sumY / sumX;
+                G4double s2_Y = (sumY2 - (sumY * sumY) / N) / (N - 1.0);
+                G4double s2_X = (sumX2 - (sumX * sumX) / N) / (N - 1.0);
+                G4double s_XY = (sumXY - (sumY * sumX) / N) / (N - 1.0);
+
+                G4double varR = (N / (sumX * sumX)) * (s2_Y + R * R * s2_X - 2.0 * R * s_XY);
+                if (varR > 0.) total_yD_SE = std::sqrt(varR) * C;
               }
-            }
 
-            // [수정] 3. 좌표와 Total 데이터 쓰기 분기
-            if (outputFormat == "csv")
-            {
-              ofs << i << "," << j << "," << k << "," << total_yD << "," << total_yD_SE << ","
-                  << total_dose << "," << total_dose_SE;
-            }
-            else
-            {
-              ofs.write(reinterpret_cast<const char*>(&i), sizeof(G4int));
-              ofs.write(reinterpret_cast<const char*>(&j), sizeof(G4int));
-              ofs.write(reinterpret_cast<const char*>(&k), sizeof(G4int));
-              ofs.write(reinterpret_cast<const char*>(&total_yD), sizeof(G4double));
-              ofs.write(reinterpret_cast<const char*>(&total_yD_SE), sizeof(G4double));
-              ofs.write(reinterpret_cast<const char*>(&total_dose), sizeof(G4double));
-              ofs.write(reinterpret_cast<const char*>(&total_dose_SE), sizeof(G4double));
-            }
-
-            // 각 Ion 별 데이터 계산 및 쓰기
-            for (size_t l = 0; l < ionlinStore.size(); l++)
-            {
-              G4double ion_yD = 0.;
-              G4double ion_yD_SE = 0.;
-              G4double ion_dose = 0.;
-              G4double ion_dose_SE = 0.;
-              unsigned int ion_f = 0;
-
-              auto it = ionlinStore[l].sparseData.find(n);
-              if (it != ionlinStore[l].sparseData.end())
+              // --- [2] Total Dose 및 SE 계산 ---
+              G4double total_dose = (matrix[n] / massOfVoxel / N) / doseUnit;
+              G4double total_dose_SE = 0.;
+              if (N > 1.0)
               {
-                const LinealStat& stat = it->second;
-                ion_f = stat.f;
-
-                if (stat.e > 0)
+                G4double sumX = matrix[n];
+                G4double sumX2 = matrixSquare[n];
+                G4double variance = (sumX2 - (sumX * sumX) / N) / (N - 1.0);
+                if (variance > 0.)
                 {
-                  // --- Ion yD 계산 ---
-                  ion_yD = (stat.e2 / stat.e) * C;
-                  if (N > 1.0)
-                  {
-                    G4double sumY = stat.e2;
-                    G4double sumX = stat.e;
-                    G4double sumY2 = stat.e4;
-                    G4double sumX2 = stat.e2;
-                    G4double sumXY = stat.e3;
-
-                    G4double R = sumY / sumX;
-                    G4double s2_Y = (sumY2 - (sumY * sumY) / N) / (N - 1.0);
-                    G4double s2_X = (sumX2 - (sumX * sumX) / N) / (N - 1.0);
-                    G4double s_XY = (sumXY - (sumY * sumX) / N) / (N - 1.0);
-
-                    G4double varR = (N / (sumX * sumX)) * (s2_Y + R * R * s2_X - 2.0 * R * s_XY);
-                    if (varR > 0.) ion_yD_SE = std::sqrt(varR) * C;
-                  }
-
-                  // --- Ion Dose 계산 ---
-                  ion_dose = (stat.e / massOfVoxel / N) / doseUnit;
-                  if (N > 1.0)
-                  {
-                    G4double sumX = stat.e;
-                    G4double sumX2 = stat.e2;
-                    G4double variance = (sumX2 - (sumX * sumX) / N) / (N - 1.0);
-                    if (variance > 0.)
-                    {
-                      G4double err_ion = std::sqrt(variance / N);
-                      ion_dose_SE = (err_ion / massOfVoxel) / doseUnit;
-                    }
-                  }
+                  G4double errTotalEnergy = std::sqrt(variance / N);
+                  total_dose_SE = (errTotalEnergy / massOfVoxel) / doseUnit;
                 }
               }
 
-              // [수정] 4. Ion 별 데이터 쓰기 분기
+              // [수정] 3. 좌표와 Total 데이터 쓰기 분기
               if (outputFormat == "csv")
               {
-                ofs << "," << ion_yD << "," << ion_yD_SE << "," << ion_dose << "," << ion_dose_SE
-                    << "," << ion_f;
+                ofs << i << "," << j << "," << k << "," << total_yD << "," << total_yD_SE << ","
+                    << total_dose << "," << total_dose_SE;
               }
               else
               {
-                ofs.write(reinterpret_cast<const char*>(&ion_yD), sizeof(G4double));
-                ofs.write(reinterpret_cast<const char*>(&ion_yD_SE), sizeof(G4double));
-                ofs.write(reinterpret_cast<const char*>(&ion_dose), sizeof(G4double));
-                ofs.write(reinterpret_cast<const char*>(&ion_dose_SE), sizeof(G4double));
-                ofs.write(reinterpret_cast<const char*>(&ion_f), sizeof(unsigned int));
+                ofs.write(reinterpret_cast<const char*>(&i), sizeof(G4int));
+                ofs.write(reinterpret_cast<const char*>(&j), sizeof(G4int));
+                ofs.write(reinterpret_cast<const char*>(&k), sizeof(G4int));
+                ofs.write(reinterpret_cast<const char*>(&total_yD), sizeof(G4double));
+                ofs.write(reinterpret_cast<const char*>(&total_yD_SE), sizeof(G4double));
+                ofs.write(reinterpret_cast<const char*>(&total_dose), sizeof(G4double));
+                ofs.write(reinterpret_cast<const char*>(&total_dose_SE), sizeof(G4double));
+              }
+
+              // 각 Ion 별 데이터 계산 및 쓰기
+              for (size_t l = 0; l < ionlinStore.size(); l++)
+              {
+                G4double ion_yD = 0.;
+                G4double ion_yD_SE = 0.;
+                G4double ion_dose = 0.;
+                G4double ion_dose_SE = 0.;
+                unsigned int ion_f = 0;
+
+                auto it = ionlinStore[l].sparseData.find(n);
+                if (it != ionlinStore[l].sparseData.end())
+                {
+                  const LinealStat& stat = it->second;
+                  ion_f = stat.f;
+
+                  if (stat.e > 0)
+                  {
+                    // --- Ion yD 계산 ---
+                    ion_yD = (stat.e2 / stat.e) * C;
+                    if (N > 1.0)
+                    {
+                      G4double sumY = stat.e2;
+                      G4double sumX = stat.e;
+                      G4double sumY2 = stat.e4;
+                      G4double sumX2 = stat.e2;
+                      G4double sumXY = stat.e3;
+
+                      G4double R = sumY / sumX;
+                      G4double s2_Y = (sumY2 - (sumY * sumY) / N) / (N - 1.0);
+                      G4double s2_X = (sumX2 - (sumX * sumX) / N) / (N - 1.0);
+                      G4double s_XY = (sumXY - (sumY * sumX) / N) / (N - 1.0);
+
+                      G4double varR = (N / (sumX * sumX)) * (s2_Y + R * R * s2_X - 2.0 * R * s_XY);
+                      if (varR > 0.) ion_yD_SE = std::sqrt(varR) * C;
+                    }
+
+                    // --- Ion Dose 계산 ---
+                    ion_dose = (stat.e / massOfVoxel / N) / doseUnit;
+                    if (N > 1.0)
+                    {
+                      G4double sumX = stat.e;
+                      G4double sumX2 = stat.e2;
+                      G4double variance = (sumX2 - (sumX * sumX) / N) / (N - 1.0);
+                      if (variance > 0.)
+                      {
+                        G4double err_ion = std::sqrt(variance / N);
+                        ion_dose_SE = (err_ion / massOfVoxel) / doseUnit;
+                      }
+                    }
+                  }
+                }
+
+                // [수정] 4. Ion 별 데이터 쓰기 분기
+                if (outputFormat == "csv")
+                {
+                  ofs << "," << ion_yD << "," << ion_yD_SE << "," << ion_dose << "," << ion_dose_SE
+                      << "," << ion_f;
+                }
+                else
+                {
+                  ofs.write(reinterpret_cast<const char*>(&ion_yD), sizeof(G4double));
+                  ofs.write(reinterpret_cast<const char*>(&ion_yD_SE), sizeof(G4double));
+                  ofs.write(reinterpret_cast<const char*>(&ion_dose), sizeof(G4double));
+                  ofs.write(reinterpret_cast<const char*>(&ion_dose_SE), sizeof(G4double));
+                  ofs.write(reinterpret_cast<const char*>(&ion_f), sizeof(unsigned int));
+                }
+              }
+              if (outputFormat == "csv")
+              {
+                ofs << "\n";
               }
             }
-            if (outputFormat == "csv")
-            {
-              ofs << "\n";
-            }
           }
-        }
-    ofs.close();
+    }
+    else
+    {
+      ofs << "," <<"_f";
+    }
   }
+  ofs.close();
 }
 
 void HadrontherapyMatrix::StoreDoseFluenceBinary(G4String file)

@@ -65,6 +65,16 @@ HadrontherapyAnalysisFileMessenger::HadrontherapyAnalysisFileMessenger(Hadronthe
   outputFormatCmd->SetParameterName("format", false);
   outputFormatCmd->SetCandidates("binary csv"); // 오타 방지를 위해 binary 또는 csv만 입력 가능
   outputFormatCmd->AvailableForStates(G4State_Idle, G4State_PreInit);
+
+  // [추가 2] storeRawStats 명령어 설정
+  storeRawStatsCmd = new G4UIcmdWithABool("/analysis/storeRawStats", this);
+  storeRawStatsCmd->SetParameterName("storeRawStats", true);  // omittable=true
+  storeRawStatsCmd->SetDefaultValue(false);
+  storeRawStatsCmd->SetGuidance(
+    "Set if raw statistical moments (e1,e2,e3,e4,f) are stored instead of"
+    " calculated quantities (dose, dose_SE, yD, yD_SE, f)"
+    "\n[usage]: /analysis/storeRawStats [true/false]");
+  storeRawStatsCmd->AvailableForStates(G4State_Idle, G4State_PreInit);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -74,6 +84,7 @@ HadrontherapyAnalysisFileMessenger::~HadrontherapyAnalysisFileMessenger()
   // delete DoseMatrixCmd;
   delete LetCmd;
   delete outputFormatCmd;
+  delete storeRawStatsCmd;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -107,6 +118,14 @@ void HadrontherapyAnalysisFileMessenger::SetNewValue(G4UIcommand* command, G4Str
     if (HadrontherapyMatrix::GetInstance())
     {
       HadrontherapyMatrix::GetInstance()->SetOutputFormat(newValue);
+    }
+  }
+
+  else if (command == storeRawStatsCmd)
+  {
+    if (HadrontherapyMatrix::GetInstance())
+    {
+      HadrontherapyMatrix::GetInstance()->storeRawStats = storeRawStatsCmd->GetNewBoolValue(newValue);
     }
   }
 }
