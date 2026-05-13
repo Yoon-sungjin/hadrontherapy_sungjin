@@ -613,9 +613,121 @@ void HadrontherapyMatrix::StoreDoseFluenceLinealBinary(G4String file)
             }
           }
     }
-    else
+    else  // storeRawStats == true
     {
-      ofs << "," <<"_f";
+      G4double N = (G4double)totalEvents;
+      G4double C = 1000.0 / meanChordLength_um;
+
+      // 헤더 작성
+      if (outputFormat == "csv")
+      {
+        // 메타데이터 먼저 작성
+        ofs << "# massOfVoxel=" << massOfVoxel
+            << ",doseUnit=" << doseUnit
+            << ",C=" << C << "\n";
+
+        ofs << "i,j,k,N,total_e1,total_e2,total_e3,total_e4";
+        for (size_t l = 0; l < ionlinStore.size(); l++)
+        {
+          G4String a = (ionlinStore[l].isPrimary) ? "_1" : "";
+          G4String ionName = ionlinStore[l].name + a;
+          ofs << "," << ionName << "_e1," << ionName << "_e2," << ionName << "_e3,"
+              << ionName << "_e4," << ionName << "_f";
+        }
+        ofs << "\n";
+      }
+      else
+      {
+        // 메타데이터 먼저 작성
+        ofs.write(reinterpret_cast<const char*>(&massOfVoxel), sizeof(G4double));
+        ofs.write(reinterpret_cast<const char*>(&doseUnit),    sizeof(G4double));
+        ofs.write(reinterpret_cast<const char*>(&C),           sizeof(G4double));
+
+        ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongX), sizeof(G4int));
+        ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongY), sizeof(G4int));
+        ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongZ), sizeof(G4int));
+        ofs.write(reinterpret_cast<const char*>(&numIons), sizeof(G4int));
+
+        for (size_t l = 0; l < ionlinStore.size(); l++)
+        {
+          G4String a = (ionlinStore[l].isPrimary) ? "_1" : "";
+          G4String ionName = ionlinStore[l].name + a;
+          G4int nameLen = ionName.length();
+          ofs.write(reinterpret_cast<const char*>(&nameLen), sizeof(G4int));
+          ofs.write(ionName.c_str(), nameLen);
+        }
+      }
+
+      for (G4int i = 0; i < numberOfVoxelAlongX; i++)
+        for (G4int j = 0; j < numberOfVoxelAlongY; j++)
+          for (G4int k = 0; k < numberOfVoxelAlongZ; k++)
+          {
+            G4int n = Index(i, j, k);
+
+            if (matrix[n] > 0)
+            {
+              G4double total_e1 = matrix[n];
+              G4double total_e2 = matrixSquare[n];
+              G4double total_e3 = matrixCube[n];
+              G4double total_e4 = matrixQuad[n];
+
+              if (outputFormat == "csv")
+              {
+                ofs << i << "," << j << "," << k << "," << N << ","
+                    << total_e1 << "," << total_e2 << "," << total_e3 << "," << total_e4;
+              }
+              else
+              {
+                ofs.write(reinterpret_cast<const char*>(&i),        sizeof(G4int));
+                ofs.write(reinterpret_cast<const char*>(&j),        sizeof(G4int));
+                ofs.write(reinterpret_cast<const char*>(&k),        sizeof(G4int));
+                ofs.write(reinterpret_cast<const char*>(&N),        sizeof(G4double));
+                ofs.write(reinterpret_cast<const char*>(&total_e1), sizeof(G4double));
+                ofs.write(reinterpret_cast<const char*>(&total_e2), sizeof(G4double));
+                ofs.write(reinterpret_cast<const char*>(&total_e3), sizeof(G4double));
+                ofs.write(reinterpret_cast<const char*>(&total_e4), sizeof(G4double));
+              }
+
+              for (size_t l = 0; l < ionlinStore.size(); l++)
+              {
+                G4double ion_e1 = 0.;
+                G4double ion_e2 = 0.;
+                G4double ion_e3 = 0.;
+                G4double ion_e4 = 0.;
+                unsigned int ion_f = 0;
+
+                auto it = ionlinStore[l].sparseData.find(n);
+                if (it != ionlinStore[l].sparseData.end())
+                {
+                  const LinealStat& stat = it->second;
+                  ion_e1 = stat.e;
+                  ion_e2 = stat.e2;
+                  ion_e3 = stat.e3;
+                  ion_e4 = stat.e4;
+                  ion_f  = stat.f;
+                }
+
+                if (outputFormat == "csv")
+                {
+                  ofs << "," << ion_e1 << "," << ion_e2 << "," << ion_e3 << "," << ion_e4
+                      << "," << ion_f;
+                }
+                else
+                {
+                  ofs.write(reinterpret_cast<const char*>(&ion_e1), sizeof(G4double));
+                  ofs.write(reinterpret_cast<const char*>(&ion_e2), sizeof(G4double));
+                  ofs.write(reinterpret_cast<const char*>(&ion_e3), sizeof(G4double));
+                  ofs.write(reinterpret_cast<const char*>(&ion_e4), sizeof(G4double));
+                  ofs.write(reinterpret_cast<const char*>(&ion_f),  sizeof(unsigned int));
+                }
+              }
+
+              if (outputFormat == "csv")
+              {
+                ofs << "\n";
+              }
+            }
+          }
     }
   }
   ofs.close();
