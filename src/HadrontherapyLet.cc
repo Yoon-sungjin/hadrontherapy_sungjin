@@ -313,7 +313,7 @@ void HadrontherapyLet::StoreLetBinary(G4String filename)
   if (outputFormat == "csv") {
     ofs.open(filename + ".csv", std::ios::out);
   } else {
-    ofs.open(filename + ".bin", std::ios::out | std::ios::binary);
+    ofs.open(filename + ".out", std::ios::out | std::ios::binary);
   }
 
   if (ofs.is_open())

@@ -624,9 +624,10 @@ void HadrontherapyMatrix::StoreDoseFluenceLinealBinary(G4String file)
         // 메타데이터 먼저 작성
         ofs << "# massOfVoxel=" << massOfVoxel
             << ",doseUnit=" << doseUnit
-            << ",C=" << C << "\n";
+            << ",C=" << C
+            << ",N=" << N << "\n";
 
-        ofs << "i,j,k,N,total_e1,total_e2,total_e3,total_e4";
+        ofs << "i,j,k,total_e1,total_e2,total_e3,total_e4";
         for (size_t l = 0; l < ionlinStore.size(); l++)
         {
           G4String a = (ionlinStore[l].isPrimary) ? "_1" : "";
@@ -638,10 +639,11 @@ void HadrontherapyMatrix::StoreDoseFluenceLinealBinary(G4String file)
       }
       else
       {
-        // 메타데이터 먼저 작성
+        // 메타데이터 먼저 작성 (double * 3, double * 1)
         ofs.write(reinterpret_cast<const char*>(&massOfVoxel), sizeof(G4double));
         ofs.write(reinterpret_cast<const char*>(&doseUnit),    sizeof(G4double));
         ofs.write(reinterpret_cast<const char*>(&C),           sizeof(G4double));
+        ofs.write(reinterpret_cast<const char*>(&N),           sizeof(G4double));
 
         ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongX), sizeof(G4int));
         ofs.write(reinterpret_cast<const char*>(&numberOfVoxelAlongY), sizeof(G4int));
@@ -673,7 +675,7 @@ void HadrontherapyMatrix::StoreDoseFluenceLinealBinary(G4String file)
 
               if (outputFormat == "csv")
               {
-                ofs << i << "," << j << "," << k << "," << N << ","
+                ofs << i << "," << j << "," << k << ","
                     << total_e1 << "," << total_e2 << "," << total_e3 << "," << total_e4;
               }
               else
@@ -681,7 +683,6 @@ void HadrontherapyMatrix::StoreDoseFluenceLinealBinary(G4String file)
                 ofs.write(reinterpret_cast<const char*>(&i),        sizeof(G4int));
                 ofs.write(reinterpret_cast<const char*>(&j),        sizeof(G4int));
                 ofs.write(reinterpret_cast<const char*>(&k),        sizeof(G4int));
-                ofs.write(reinterpret_cast<const char*>(&N),        sizeof(G4double));
                 ofs.write(reinterpret_cast<const char*>(&total_e1), sizeof(G4double));
                 ofs.write(reinterpret_cast<const char*>(&total_e2), sizeof(G4double));
                 ofs.write(reinterpret_cast<const char*>(&total_e3), sizeof(G4double));
@@ -745,7 +746,7 @@ void HadrontherapyMatrix::StoreDoseFluenceBinary(G4String file)
   }
   else
   {
-    ofs.open(filename + ".bin", std::ios::out | std::ios::binary);
+    ofs.open(filename + ".out", std::ios::out | std::ios::binary);
   }
 
   if (ofs.is_open())
