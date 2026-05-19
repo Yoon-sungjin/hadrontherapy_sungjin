@@ -621,12 +621,28 @@ void HadrontherapyMatrix::StoreDoseFluenceLinealBinary(G4String file)
       // 헤더 작성
       if (outputFormat == "csv")
       {
-        // 메타데이터 먼저 작성
-        ofs << "# massOfVoxel=" << massOfVoxel
-            << ",doseUnit=" << doseUnit
-            << ",C=" << C
-            << ",N=" << N << "\n";
+        // 메타데이터
+        ofs << "# ============================================================\n";
+        ofs << "# Geant4 Simulation Output - Voxel Scoring Data\n";
+        ofs << "# ============================================================\n";
+        ofs << "# massOfVoxel = " << massOfVoxel << "  [MeV/c^2]  mass of a single voxel (CLHEP internal units)\n";
+        ofs << "# doseUnit    = " << doseUnit    << "  [mm^2/ns^2] CLHEP internal value of 1 Gy; divide by this to convert to Gy\n";
+        ofs << "# C           = " << C           << "  [mm^-1]    1 / meanChordLength, where meanChordLength = (4/3)*r\n";
+        ofs << "# N           = " << N           << "  [counts]   total simulated events\n";
+        ofs << "# ============================================================\n";
+        ofs << "# Column Descriptions:\n";
+        ofs << "#   i, j, k  : voxel indices\n";
+        ofs << "#   *_e1     : sum of E        [MeV]\n";
+        ofs << "#   *_e2     : sum of E^2      [MeV^2]\n";
+        ofs << "#   *_e3     : sum of E^3      [MeV^3]\n";
+        ofs << "#   *_e4     : sum of E^4      [MeV^4]\n";
+        ofs << "#   *_f      : particle fluence [counts]\n";
+        ofs << "#\n";
+        ofs << "#   Prefixes: total_ | <particle>_1 (primary) | <particle> (secondary)\n";
+        ofs << "#   (total_ has no _f column)\n";
+        ofs << "# ============================================================\n";
 
+        // 헤더
         ofs << "i,j,k,total_e1,total_e2,total_e3,total_e4";
         for (size_t l = 0; l < ionlinStore.size(); l++)
         {
